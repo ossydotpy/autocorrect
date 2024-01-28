@@ -1,4 +1,5 @@
 import re
+import numpy as np
 from collections import Counter
 from string import ascii_lowercase
 
@@ -212,3 +213,81 @@ def get_suggestions(word, vocab, probs, n_suggestions=5):
 
     top_n = Counter(best_words).most_common(n_suggestions)
     return top_n
+
+def min_edit_distance(source:str, target:str, insert_cost:int, delete_cost:int, replace_cost:int):
+    """
+    Calculate the minimum edit distance between two strings.
+
+    Args:
+    - source (str): The source string.
+    - target (str): The target string.
+    - insert_cost (int): The cost of inserting a character.
+    - delete_cost (int): The cost of deleting a character.
+    - replace_cost (int): The cost of replacing a character.
+
+    Returns:
+    - tuple: A tuple containing the minimum edit distance, the dynamic programming matrix and the operations list.
+             The minimum edit distance is the cost of transforming the source string into the target string.
+             The dynamic programming matrix stores the intermediate costs and operations.
+             The operations list stores all the steps taken to change the source to the target.
+
+    The function computes the minimum edit distance using dynamic programming, where each cell in the matrix
+    represents the minimum cost of transforming a substring of the source string into a substring of the target string.
+    """
+    n_rows = len(source)
+    n_columns = len(target)
+    matrix = np.zeros((n_rows+1, n_columns+1))
+    
+    for i in range(1,n_rows+1):
+        matrix[i,0] = matrix[i-1,0]+delete_cost
+
+    for j in range(1,n_columns+1):
+        matrix[0,j] = matrix[0,j-1]+insert_cost
+
+    for i in range(1, n_rows+1):
+        for j in range(1, n_columns+1):
+            if source[i-1] == target[j-1]:
+                r_cost = 0
+            else:
+                r_cost = replace_cost
+
+            matrix[i, j] = min(
+                matrix[i-1, j] + delete_cost,
+                matrix[i, j-1] + insert_cost,
+                matrix[i-1, j-1] + r_cost
+            )
+
+    i, j = n_rows, n_columns
+    ops = []
+    while i > 0 and j > 0:
+        if source[i-1] == target[j-1]:
+            if matrix[i, j] == matrix[i-1, j-1]:
+                ops.append('No op')
+            else:
+                ops.append('repl')
+            j -= 1
+            i -= 1
+        else:
+            if matrix[i, j] == matrix[i-1, j] + delete_cost:
+                ops.append('del')
+                i -= 1
+            elif matrix[i, j] == matrix[i, j-1] + insert_cost:
+                ops.append('ins')
+                j -= 1
+            else:
+                ops.append('repl')
+                j -= 1
+                i -= 1
+
+    while i > 0:
+        ops.append('del')
+        i -= 1
+
+    while j > 0:
+        ops.append('ins')
+        j -= 1
+    
+    ops.reverse()
+
+    min_edit_distance = matrix[n_rows,n_columns]
+    return (min_edit_distance, matrix, ops)
